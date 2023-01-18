@@ -4,15 +4,27 @@ import uuid
 
 import cv2
 import uvicorn
-from fastapi import File
-from fastapi import FastAPI
-from fastapi import UploadFile
+from fastapi import FastAPI, File, UploadFile
 import numpy as np
 from PIL import Image
+from typing import List
+import os
 
+MODEL_NAME = "runwayml/stable-diffusion-v1-5"
 
 app = FastAPI()
 
+@app.post("/addConcept/")
+def create_upload_dir(name: str, files: List[UploadFile]):
+    os.system('mkdir ' + name) #replace this with actual storage system for images
+    dir = os.getcwd() + "/" + name
+    os.chdir(dir)
+    for f in files:
+        file_location = dir + "/" + f.filename
+        with open(file_location, "wb+") as file_object:
+            file_object.write(f.file.read())
+
+    return dir
 
 @app.get("/")
 def read_root():
