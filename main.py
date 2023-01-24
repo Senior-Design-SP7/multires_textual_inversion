@@ -45,7 +45,7 @@ def create_upload_dir(name: str, files: List[UploadFile]):
             file_object.write(f.file.read())
 
     # call training cmd for giannis's model
-    os.system(trainConcept(dir, name))
+    # os.system(trainConcept(dir, name))
     return "SUCCESS!"
 
 @app.get("/")
