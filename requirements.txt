@@ -5,4 +5,7 @@ ftfy
 gdown
 accelerate
 bitsandbytes
+fastapi
+uvicorn
+python-multipart
 
