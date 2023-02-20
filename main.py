@@ -62,7 +62,7 @@ def create_upload_dir(name: str, files: List[UploadFile]):
 # TODO Make it so that we have a dictionary of trained concepts for each user on mongoDB
 # TODO Make the prompt customizable
 @app.post("/promptModel/")
-def create_upload_dir(name: str, location: str):
+def prompt_model(name: str, location: str):
 	pipe = DreamBoothMultiResPipeline.from_pretrained(f"{location}", use_auth_token=True)
 	pipe = pipe.to("cuda")
 	image = pipe(f"An image of <{name}(0)>")[0]
