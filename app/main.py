@@ -3,7 +3,8 @@ import uvicorn
 from fastapi import FastAPI
 from pymongo import MongoClient
 
-from .routers import users, ai
+import routers.users as users
+import routers.ai as ai
 
 app = FastAPI()
 

@@ -1,4 +1,6 @@
 accelerate==0.16.0
+httptools==0.1.*
+uvloop
 bitsandbytes==0.37.0
 diffusers==0.12.1
 fastapi==0.92.0
@@ -14,5 +16,7 @@ requests==2.22.0
 torch==1.13.1+cpu
 torchvision==0.14.1+cpu
 tqdm==4.55.1
-transformers==4.26.1
+pymongo
+bcrypt
+transformers==4.21.0
 uvicorn==0.20.0
