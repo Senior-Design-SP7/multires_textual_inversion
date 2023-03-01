@@ -92,3 +92,14 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+# return user concepts
+@router.get("/concepts", response_model=List[str])
+async def read_users_concepts(current_user: User = Depends(get_current_user)):
+    return current_user['concepts']
+
+# add a concept to user
+@router.post("/concepts", response_model=List[str])
+async def add_user_concept(request:Request ,current_user: User = Depends(get_current_user), concept: str = Body(...)):
+    request.app.database["userInfo"].update_one( {"email": current_user['email']}, {"$push": {"concepts": concept}} )
+    return request.app.database["userInfo"].find_one( {"email": current_user['email']} )['concepts']
