@@ -7,6 +7,7 @@ from .routers import users, ai
 
 app = FastAPI()
 
+
 app.include_router(ai.router)
 app.include_router(users.router)
 
