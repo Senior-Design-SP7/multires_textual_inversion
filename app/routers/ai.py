@@ -61,4 +61,10 @@ def model_prompt(name: str, location: str):
 	image = pipe(f"An image of <{name}(0)>")[0]
 	loc = f"out_image.png"
 	image.save(loc)
-	return "SUCCESS!"
+	return loc
+
+# Get request that returns a list of all concepts that have been trained for a user
+# TODO Make it so that we have a dictionary of trained concepts for each user on mongoDB
+@router.get("/getConcepts/")
+def get_concepts():
+	return "Chinaya needs to implement this"
