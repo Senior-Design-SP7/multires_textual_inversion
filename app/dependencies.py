@@ -25,6 +25,7 @@ class UserCreate(BaseModel):
     lastName: str = Field(...)
     email: str = Field(...)
     password: str = Field(...)
+    concepts: list = Field(...)
     class Config:
         allow_population_by_field_name = True
         schema_extra = {
@@ -32,7 +33,8 @@ class UserCreate(BaseModel):
                 "firstName": "John",
                 "lastName": "Doe",
                 "email": "jd@meme.com",
-                "password": "pwd"
+                "password": "pwd",
+                "concepts": "[]"
             }
         }
 
@@ -52,6 +54,7 @@ class UserUpdate(BaseModel):
     lastName: str = Field(...)
     email: str = Field(...)
     password: str = Field(...)
+    concepts: list = Field(...)
 
     class Config:
         schema_extra = {
@@ -59,6 +62,7 @@ class UserUpdate(BaseModel):
                 "firstName": "John",
                 "lastName": "Doe",
                 "email": "jd@meme.com",
-                "password": "pwd"
+                "password": "pwd",
+                "concepts": "[]"
             }
         }
