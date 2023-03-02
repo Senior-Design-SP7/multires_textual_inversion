@@ -21,6 +21,7 @@ WORKDIR /
 COPY ./requirements.txt .
 # Copy everything from ./src directory to /app in the container
 COPY ./ . 
-RUN pip3 install -r requirements.txt # Install the dependencies
+RUN python3 --version
+RUN python3 -m pip install -r requirements.txt # Install the dependencies
 # Run the application in the port 8000
 CMD ["uvicorn", "--host", "0.0.0.0", "--port", "8000", "main:app"]
