@@ -3,8 +3,8 @@ import uvicorn
 from fastapi import FastAPI
 from pymongo import MongoClient
 
-import routers.users as users
-import routers.ai as ai
+from .routers import users
+from .routers import ai
 
 app = FastAPI()
 
@@ -28,4 +28,4 @@ def read_root():
 	return {"message": "Welcome from the API"}
 
 if __name__ == "__main__":
-	uvicorn.run("main:app", host="0.0.0.0", port=8080)
+	uvicorn.run("main:app", host="0.0.0.0", port=8000)
