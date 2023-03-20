@@ -29,3 +29,6 @@ def read_root():
 
 if __name__ == "__main__":
 	uvicorn.run("main:app", host="0.0.0.0", port=8000)
+
+# to run the app, run the following command:
+# uvicorn app.main:app --reload
