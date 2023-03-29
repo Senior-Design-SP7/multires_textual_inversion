@@ -7,8 +7,8 @@ from typing import List
 router = APIRouter(prefix="/ai")
 
 from pipeline import DreamBoothMultiResPipeline
-from pipeline_controlnet import StableDiffusionControlNetPipeline 
-from controlnet import ControlNetModel
+from diffusers import StableDiffusionControlNetPipeline 
+from diffusers import ControlNetModel
 import torch
 import train_dreambooth
 
