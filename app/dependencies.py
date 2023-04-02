@@ -34,7 +34,7 @@ class UserCreate(BaseModel):
                 "lastName": "Doe",
                 "email": "jd@meme.com",
                 "password": "pwd",
-                "concepts": "[]"
+                "concepts": []
             }
         }
 

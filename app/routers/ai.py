@@ -7,8 +7,8 @@ from typing import List
 router = APIRouter(prefix="/ai")
 
 from pipeline import DreamBoothMultiResPipeline
-from pipeline_controlnet import StableDiffusionControlNetPipeline 
-from controlnet import ControlNetModel
+from diffusers import StableDiffusionControlNetPipeline 
+from diffusers import ControlNetModel
 import torch
 import train_dreambooth
 
@@ -67,20 +67,20 @@ def model_prompt(name: str, location: str):
 
 # POST request that also guides the model based on pose 
 @router.post("/promptModelPose/")
-def model_prompt_pose(name: str, location: str, pose: str):
+def model_prompt_pose(name: str, pose: str, imagepath: str):
 	# load pretrained model for user and controlnet model
 	# TODO make it so that choice of controlnet is customizable for now we're using lllyasviel/sd-controlnet-openpose
 	controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float16)
 	pipe = StableDiffusionControlNetPipeline.from_pretrained(
-		f"{location}", controlnet=controlnet, torch_dtype=torch.float16
+		f"dreambooth_outputs/multires_100/{name}", controlnet=controlnet, torch_dtype=torch.float16
 	)
 	pipe = pipe.to("cuda")
-	prompt = f"An image of <{name}(0)> super detailed"
+	prompt = f"An image of <{name}(0)> standing with a long conservative dress super detailed"
 	# load pose from images subfolder - TODO make it so that we can pass in a pose
-	pose = Image.open("/Users/laithaustin/Documents/seniorDesign/multires_textual_inversion/images/pose.png", "r")
+	pose = Image.open(f"{imagepath}", "r")
 	output = pipe(prompt, pose)
 	loc = f"out_image.png"
-	output.images.save(loc)
+	output.images[0].save(loc)
 	return loc
 
 # Get request that returns a list of all concepts that have been trained for a user
