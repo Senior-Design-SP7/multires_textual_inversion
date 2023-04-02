@@ -25,7 +25,7 @@ def trainConcept(conceptDir, conceptName):
 				--gradient_accumulation_steps=4 --gradient_checkpointing \
 				--use_8bit_adam \
 				--learning_rate=5e-6 \
-				--lr_scheduler='constant' \
+				--lr_scheduler=constant \
 				--lr_warmup_steps=0 \
 				--max_train_steps=100 ".format(MODEL_NAME, conceptDir, conceptName)
 
