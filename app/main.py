@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers import users
 from .routers import ai
 
+from huggingface_hub.hf_api import HfFolder
+import os
+
 app = FastAPI()
 
 app.include_router(ai.router)
@@ -31,6 +34,13 @@ def startup_db_client():
     app.mongodb_client = MongoClient("mongodb://pnelakon:dimakisrocks@ac-qeu9obx-shard-00-00.z5fpuh8.mongodb.net:27017,ac-qeu9obx-shard-00-01.z5fpuh8.mongodb.net:27017,ac-qeu9obx-shard-00-02.z5fpuh8.mongodb.net:27017/?ssl=true&replicaSet=atlas-14pew5-shard-0&authSource=admin&retryWrites=true&w=majority")
     app.database = app.mongodb_client["users"]
     print("Connected to the MongoDB database!")
+
+@app.on_event("startup")
+def startup_huggingface_client():
+    # read environment variables for huggingface credentials
+    token = os.environ.get("HF_TOKEN")
+    HfFolder.save_token(token)
+    print("Connected to the HuggingFace API!")
 
 @app.on_event("shutdown")
 def shutdown_db_client():
