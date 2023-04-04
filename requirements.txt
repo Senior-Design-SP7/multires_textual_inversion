@@ -2,9 +2,10 @@ accelerate==0.17.1
 httptools==0.1.*
 uvloop
 bitsandbytes==0.37.0
---upgrade diffusers[torch]
+diffusers[torch]
 fastapi==0.92.0
 huggingface_hub==0.12.0
+boto3
 jose==1.0.0
 numpy
 Pillow==9.4.0
