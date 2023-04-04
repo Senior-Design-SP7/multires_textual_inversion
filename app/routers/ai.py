@@ -16,7 +16,7 @@ import logging
 from botocore.exceptions import ClientError
 
 MODEL_NAME="runwayml/stable-diffusion-v1-5"
-BUCKET_NAME = "todo"
+BUCKET_NAME = "multires"
 
 # NOTE: ADD AWS CREDENTIALS TO ENVIRONMENT VARIABLES
 # CREDENTIALS INCLUDE: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
