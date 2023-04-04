@@ -1,26 +1,52 @@
 from fastapi import APIRouter, Body, Request, Response, HTTPException, status, Depends
+from fastapi.responses import RedirectResponse
+
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import bcrypt
 from datetime import datetime, timedelta
 from typing import Union
 from jose import JWTError, jwt
 
+from email_validator import validate_email, EmailNotValidError
+
+
 from fastapi.encoders import jsonable_encoder
 from typing import List
 
 from ..dependencies import User, UserCreate, Token, TokenData
 
+import stripe
+stripe.api_key = 'sk_test_51MhgqVATxDijcQ83J0xDkP1Lx1KnDIQZN26HTcN20hNbGKYbC8S6GaIzZaNxqnI8oCPuASITqsfk5SiIezLyz6hB00Lel66x2h'
+
+
+#add is paid field to database
+#when signing up
+#   No token is sent
+#   User is initialized in backend with isPaid field=0 and the checkout session set to checkout session id
+#   success page will be the login page
+#   cancel page tbd
+
+#when logging in
+#   check if isPaid field is set to 1, if so login nomrally, send token
+#   else if isPaid is set to 0, get checkout session id and check if it has been paid
+#       if checkout session id shows it has been paid, update isPaid field to 1 and send token
+#       else if checkout session id shows it has not been paid
+#           expire old checkout session
+#           generate new checkout session, replace database checkout session id with newly generated one. 
+#           return redirect
+
+
 SECRET_KEY = 'dd4de48aa8b65494b204d20f97d23bd3650fecd995a5a43299b6462d3b049e4a'
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/token")
 
 router = APIRouter(prefix="/user")
 
 #fix so usernames cannot be repeated
 #check if user already exists
-@router.post("/create", response_description="Create a new user", status_code=status.HTTP_201_CREATED, response_model=User)
+@router.post("/create", response_description="Create a new user", status_code=307)
 def create_user(request: Request, user: UserCreate = Body(...)):
     user = jsonable_encoder(user)
     user_entry = request.app.database["userInfo"].find_one( {"email": user['email']} )
@@ -28,14 +54,47 @@ def create_user(request: Request, user: UserCreate = Body(...)):
         raise HTTPException(
              status_code=400,
              detail="User already exists"
-         )
+        )
+
+    try:
+        # validate and get info
+        v = validate_email(user['email'])
+        # replace with normalized form
+        user['email'] = v["email"] 
+    except EmailNotValidError as e:
+        # email is not valid, exception message is human-readable
+        raise HTTPException(
+             status_code=400,
+             detail=str(e)
+        )
+        
     user['salt'] = bcrypt.gensalt()
     user['password'] = bcrypt.hashpw(user["password"].encode('utf-8'), user['salt'])
+    user['isPaid'] = 0
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[
+                {
+                    'price': 'price_1MsxnyATxDijcQ83d7SMPz11',
+                    'quantity': 1,
+                },
+            ],
+            mode='payment',
+            success_url= 'https://google.com',  #change to success page that is made
+            customer_email = user['email']
+        )
+    except Exception as e:
+        return str(e)
+
+
     new_user = request.app.database["userInfo"].insert_one(user)
     created_user = request.app.database["userInfo"].find_one( {"_id": new_user.inserted_id} )
     created_user.pop("password")
     created_user.pop("salt")
-    return created_user
+    print(checkout_session.url)
+
+    return RedirectResponse(checkout_session.url)
 
 
 def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):

@@ -2,15 +2,28 @@
 import uvicorn
 from fastapi import FastAPI
 from pymongo import MongoClient
+from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import users
 from .routers import ai
 
 app = FastAPI()
 
-
 app.include_router(ai.router)
 app.include_router(users.router)
+
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 
 
 @app.on_event("startup")
