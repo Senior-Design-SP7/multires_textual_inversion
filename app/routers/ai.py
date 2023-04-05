@@ -16,14 +16,40 @@ import logging
 from botocore.exceptions import ClientError
 
 MODEL_NAME="runwayml/stable-diffusion-v1-5"
-BUCKET_NAME = "multires"
+BUCKET_NAME = "multires-100"
+
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 
 # NOTE: ADD AWS CREDENTIALS TO ENVIRONMENT VARIABLES
 # CREDENTIALS INCLUDE: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
 
+def upload_s3(local_path, bucketname, s3):
+	for path, dirs, files in os.walk(local_path):
+		for file in files:
+			file_s3 = os.path.normpath(path + '/' + file)
+			file_local = os.path.join(path, file)
+			print("Upload:", file_local, "to target:", file_s3, end="")
+			s3.upload_file(file_local, bucketname, file_s3)
+			print(" ...Success")
+
+	return
+
+def download_s3_folder(bucket_name, s3_folder, s3, local_dir=None):
+    bucket = s3.Bucket(bucket_name)
+    for obj in bucket.objects.filter(Prefix=s3_folder):
+        target = obj.key if local_dir is None \
+            else os.path.join(local_dir, os.path.relpath(obj.key, s3_folder))
+        if not os.path.exists(os.path.dirname(target)):
+            os.makedirs(os.path.dirname(target))
+        if obj.key[-1] == '/':
+            continue
+        bucket.download_file(obj.key, target)
+    
+
 def key_s3_size(bucket_name, key):
     # Get the size of an object in an S3 bucket
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
     response = s3.list_objects_v2(Bucket=bucket_name, Prefix=key)
     for obj in response.get('Contents', []):
         if obj['Key'] == key:
@@ -50,9 +76,9 @@ def trainConcept(conceptDir, conceptName):
 
 	train_dreambooth.main(train_dreambooth.parse_args(args.split()))
 	# upload to s3 bucket
-	s3 = boto3.resource('s3')
+	s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 	try:
-		response = s3.upload_file(f"dreambooth_outputs/multires_100/{conceptName}", BUCKET_NAME, conceptName)
+		upload_s3(f"dreambooth_outputs/multires_100/{conceptName}", BUCKET_NAME, s3)
 	except ClientError as e:
 		logging.error(e)
 		return False
@@ -84,13 +110,14 @@ def model_prompt(name: str, prompt: str):
 	# download model from s3 bucket
 	s3 = boto3.resource('s3')
 	file_name = f"dreambooth_outputs/multires_100/{name}"
-	s3.download_file(BUCKET_NAME, name, file_name) 
+	download_s3_folder(BUCKET_NAME, file_name, s3) 
 	# check that file was downloaded successfully
-	if (os.path.isfile(file_name) == False):
+	if (os.path.exists(file_name) == False):
 		return responses.Response(content="Model not found", media_type="text/plain")
 	pipe = DreamBoothMultiResPipeline.from_pretrained(f"{file_name}", use_auth_token=True)
 	pipe = pipe.to("cuda")
 	image = pipe(f"An image of <{name}(0)>" + prompt)[0]
+	image.save(f"{name}.png")
 	# delete local files
 	os.system(f"rm -rf {file_name}")
 	# Return FileResponse
@@ -106,9 +133,9 @@ def model_prompt_pose(name: str, prompt: str, image: UploadFile):
 	# download model from s3 bucket
 	s3 = boto3.resource('s3')
 	file_name = f"dreambooth_outputs/multires_100/{name}"
-	s3.download_file(BUCKET_NAME, name, file_name) 
+	download_s3_folder(BUCKET_NAME, file_name, s3)
 	# check that file was downloaded successfully
-	if (os.path.isfile(file_name) == False):
+	if (os.path.exists(file_name) == False):
 		return responses.Response(content="Model not found", media_type="text/plain")
 	pipe = StableDiffusionControlNetPipeline.from_pretrained(
 		f"{file_name}", controlnet=controlnet, torch_dtype=torch.float16
