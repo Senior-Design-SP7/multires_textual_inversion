@@ -20,4 +20,10 @@ RUN apt install python3-pip -y
 RUN apt install python3.7-distutils -y
 RUN apt-get install python3.7-dev -y
 RUN python3.7 -m pip install -r requirements.txt
+
+ENV HF_TOKEN=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
+ENV AWS_ACCESS_KEY_ID=AKIAXMKAHTYLFDYNIJNB
+ENV AWS_SECRET_ACCESS_KEY=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
+
+
 CMD ["uvicorn", "--host", "0.0.0.0","--port", "8000", "app.main:app"]
