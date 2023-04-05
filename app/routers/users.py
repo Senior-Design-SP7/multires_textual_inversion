@@ -46,7 +46,7 @@ router = APIRouter(prefix="/user")
 
 #fix so usernames cannot be repeated
 #check if user already exists
-@router.post("/create", response_description="Create a new user", status_code=307)
+@router.post("/create", response_description="Create a new user")
 def create_user(request: Request, user: UserCreate = Body(...)):
     user = jsonable_encoder(user)
     user_entry = request.app.database["userInfo"].find_one( {"email": user['email']} )
@@ -73,12 +73,14 @@ def create_user(request: Request, user: UserCreate = Body(...)):
     user['isPaid'] = 0
 
     try:
+        print("before checjout session")
+
         checkout_session = stripe.checkout.Session.create(
             line_items=[
                 {
                     'price': 'price_1MsxnyATxDijcQ83d7SMPz11',
-                    'quantity': 1,
-                },
+                    'quantity': 1
+                }
             ],
             mode='payment',
             success_url= 'https://google.com',  #change to success page that is made
@@ -87,9 +89,9 @@ def create_user(request: Request, user: UserCreate = Body(...)):
                 'recovery': {
                 'enabled': True,
                 },
-            },
-            expires_at = time.time() + (60*31)  #set checkout session to expire in 30 minutes from session creation
+            }
         )
+        print("after checjout session")
         user["checkout"] = checkout_session.id
         new_user = request.app.database["userInfo"].insert_one(user)
         created_user = request.app.database["userInfo"].find_one( {"_id": new_user.inserted_id} )
@@ -124,7 +126,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 #           generate new checkout session, replace database checkout session id with newly generated one. 
 #           return redirect
 
-@router.post("/token", response_model = Token)
+@router.post("/token")
 async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user_entry = request.app.database["userInfo"].find_one( {"email": form_data.username} )
     if user_entry is None:
@@ -149,7 +151,8 @@ async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = De
         checkout_session = stripe.checkout.Session.retrieve(user_entry["checkout"])
 
         if checkout_session.payment_status == "unpaid":
-            stripe.checkout.Session.expire(user_entry["checkout"])
+            if checkout_session.status == "open":
+                stripe.checkout.Session.expire(user_entry["checkout"])
             try:
                 checkout_session = stripe.checkout.Session.create(
                     line_items=[
@@ -160,13 +163,12 @@ async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = De
                     ],
                     mode='payment',
                     success_url= 'https://google.com',  #change to success page that is made
-                    customer_email = user['email'],
+                    customer_email = user_entry['email'],
                     after_expiration={
                         'recovery': {
                         'enabled': True,
                         },
-                    },
-                    expires_at = time.time() + (60*31)  #set checkout session to expire in 30 minutes from session creation
+                    }
                 )
                 #set the user['checkout'] to the new checkout id
                 myquery = { "checkout": user_entry['checkout'] }
