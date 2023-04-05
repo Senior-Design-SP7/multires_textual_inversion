@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, Request, Response, HTTPException, status, Depends
 from fastapi.responses import RedirectResponse
-
+import time
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import bcrypt
 from datetime import datetime, timedelta
@@ -82,19 +82,26 @@ def create_user(request: Request, user: UserCreate = Body(...)):
             ],
             mode='payment',
             success_url= 'https://google.com',  #change to success page that is made
-            customer_email = user['email']
+            customer_email = user['email'],
+            after_expiration={
+                'recovery': {
+                'enabled': True,
+                },
+            },
+            expires_at = time.time() + (60*31)  #set checkout session to expire in 30 minutes from session creation
         )
+        user["checkout"] = checkout_session.id
+        new_user = request.app.database["userInfo"].insert_one(user)
+        created_user = request.app.database["userInfo"].find_one( {"_id": new_user.inserted_id} )
+        created_user.pop("password")
+        created_user.pop("salt")
+        print(checkout_session)
+        return {"checkout_url": checkout_session.url}
+
     except Exception as e:
         return str(e)
 
 
-    new_user = request.app.database["userInfo"].insert_one(user)
-    created_user = request.app.database["userInfo"].find_one( {"_id": new_user.inserted_id} )
-    created_user.pop("password")
-    created_user.pop("salt")
-    print(checkout_session.url)
-
-    return RedirectResponse(checkout_session.url)
 
 
 def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
@@ -107,6 +114,15 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+#when logging in
+#   check if isPaid field is set to 1, if so login nomrally, send token
+#   else if isPaid is set to 0, get checkout session id and check if it has been paid
+#       if checkout session id shows it has been paid, update isPaid field to 1 and send token
+#       else if checkout session id shows it has not been paid
+#           expire old checkout session
+#           generate new checkout session, replace database checkout session id with newly generated one. 
+#           return redirect
 
 @router.post("/token", response_model = Token)
 async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
@@ -123,9 +139,59 @@ async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = De
              detail="Incorrect username or password",
              headers={"WWW-Authenticate": "Bearer"},
          )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": user_entry['email']}, expires_delta=access_token_expires)
-    return {"access_token": access_token, "token_type":"bearer"}
+    
+    if user_entry['isPaid'] == 1:
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(data={"sub": user_entry['email']}, expires_delta=access_token_expires)
+        return {"access_token": access_token, "token_type":"bearer"}
+
+    elif user_entry['isPaid'] == 0:
+        checkout_session = stripe.checkout.Session.retrieve(user_entry["checkout"])
+
+        if checkout_session.payment_status == "unpaid":
+            stripe.checkout.Session.expire(user_entry["checkout"])
+            try:
+                checkout_session = stripe.checkout.Session.create(
+                    line_items=[
+                        {
+                            'price': 'price_1MsxnyATxDijcQ83d7SMPz11',
+                            'quantity': 1,
+                        },
+                    ],
+                    mode='payment',
+                    success_url= 'https://google.com',  #change to success page that is made
+                    customer_email = user['email'],
+                    after_expiration={
+                        'recovery': {
+                        'enabled': True,
+                        },
+                    },
+                    expires_at = time.time() + (60*31)  #set checkout session to expire in 30 minutes from session creation
+                )
+                #set the user['checkout'] to the new checkout id
+                myquery = { "checkout": user_entry['checkout'] }
+                newvalues = { "$set": { "checkout": checkout_session.id } }
+                request.app.database["userInfo"].update_one(myquery, newvalues)
+                return {"checkout_url": checkout_session.url}
+
+            except Exception as e:
+                return str(e)
+
+        else:
+            myquery = { "email": user_entry['email'] }
+            newvalues = { "$set": { "isPaid": 1 } }
+            request.app.database["userInfo"].update_one(myquery, newvalues)
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(data={"sub": user_entry['email']}, expires_delta=access_token_expires)
+            return {"access_token": access_token, "token_type":"bearer"}       
+            
+
+
+#       if checkout session id shows it has been paid, update isPaid field to 1 and send token
+#       else if checkout session id shows it has not been paid
+#           expire old checkout session
+#           generate new checkout session, replace database checkout session id with newly generated one. 
+#           return redirect        
 
 
 async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)):
