@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 import os
 from typing import List
+import base64
 
 router = APIRouter(prefix="/ai")
 
@@ -121,7 +122,8 @@ def model_prompt(name: str, prompt: str):
 	# delete local files
 	os.system(f"rm -rf {file_name}")
 	# Return FileResponse
-	return responses.Response(content=image.tobytes(), media_type="image/png")
+	b64_string = base64.b64encode(image)
+	return {"image": b64_string}
 
 # POST request that also guides the model based on pose 
 # User passes in a pose image and the model will be guided to generate an image with that pose
