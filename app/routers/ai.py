@@ -155,8 +155,10 @@ def get_condition(image: UploadFile, condition: str):
         output.save("output.png")
         return FileResponse("output.png")
     elif condition == "canny":
-        img = cv2.imread(image.file)
-        output = cv2.Canny(img, 100, 200)
+        open_cv_image = np.array(img)
+        # Convert RGB to BGR
+        open_cv_image = open_cv_image[:, :, ::-1].copy()
+        output = cv2.Canny(open_cv_image, 100, 200)
         cv2.imwrite("condition.png", output)
         return FileResponse("condition.png")
     elif condition == "mlsd":
