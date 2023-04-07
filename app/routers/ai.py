@@ -14,7 +14,8 @@ from PIL import Image
 import os
 from typing import List
 import base64
-from controlnet_aux import OpenposeDetector, MLSDdetector, HEDdetector, CannyDetector
+from controlnet_aux import OpenposeDetector, MLSDdetector, HEDdetector
+import cv2
 
 router = APIRouter(prefix="/ai")
 
@@ -154,7 +155,9 @@ def get_condition(image: UploadFile, condition: str):
         output.save("output.png")
         return FileResponse("output.png")
     elif condition == "canny":
-        model = CannyDetector()
+        output = cv2.Canny(img, 100, 200)
+        cv2.imwrite("condition.png", output)
+        return FileResponse("condition.png")
     elif condition == "mlsd":
         model = MLSDdetector.from_pretrained("lllyasviel/ControlNet")
     elif condition == "hed":
@@ -192,8 +195,6 @@ def model_prompt_pose(name: str, prompt: str, image: UploadFile, model_choice: s
 
 # Get request that returns a list of all concepts that have been trained for a user
 # TODO Make it so that we have a dictionary of trained concepts for each user on mongoDB
-
-
 @router.get("/getConcepts/")
 def get_concepts():
     return "Chinaya needs to implement this"
