@@ -14,6 +14,7 @@ from PIL import Image
 import os
 from typing import List
 import base64
+from controlnet_aux import OpenposeDetector, MLSDdetector, HEDdetector, CannyDetector
 
 router = APIRouter(prefix="/ai")
 
@@ -26,7 +27,6 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 
 # NOTE: ADD AWS CREDENTIALS TO ENVIRONMENT VARIABLES
 # CREDENTIALS INCLUDE: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
-
 
 def upload_s3(local_path, bucketname, s3):
     for path, dirs, files in os.walk(local_path):
@@ -63,12 +63,10 @@ def key_s3_size(bucket_name, key):
     return None
 
 # short helper to format cmd for training new concepts
-
-
 def trainConcept(conceptDir, conceptName):
     # check if user has already trained this concept on s3 bucket
-    if (key_s3_size(BUCKET_NAME, conceptName) != None):
-        return False
+    # if (key_s3_size(BUCKET_NAME, userID) != None):
+    #     return False
     args = "--pretrained_model_name_or_path={} \
 				--instance_data_dir={} \
 				--output_dir=dreambooth_outputs/multires_100/{} \
@@ -84,16 +82,16 @@ def trainConcept(conceptDir, conceptName):
 
     train_dreambooth.main(train_dreambooth.parse_args(args.split()))
     # upload to s3 bucket
-    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID,
-                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    try:
-        upload_s3(
-            f"dreambooth_outputs/multires_100/{conceptName}", BUCKET_NAME, s3)
-    except ClientError as e:
-        logging.error(e)
-        return False
+    # s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID,
+    #                   aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+    # try:
+    #     upload_s3(
+    #         f"dreambooth_outputs/multires_100/{conceptName}", BUCKET_NAME, s3)
+    # except ClientError as e:
+    #     logging.error(e)
+    #     return False
     # delete local files
-    os.system(f"rm -rf dreambooth_outputs/multires_100/{conceptName}")
+    # os.system(f"rm -rf dreambooth_outputs/multires_100/{userID}")
     return True
 
 # POST request that receives images + concept name as input.
@@ -101,7 +99,7 @@ def trainConcept(conceptDir, conceptName):
 
 
 @router.post("/addConcept/")
-def create_upload_dir(name: str, files: List[UploadFile]):
+def create_upload_dir(name: str, files: List[UploadFile], userID: str):
     # check if concept already exists in mongoDB
     # TODO Make it so that we have a dictionary of trained concepts for each user on mongoDB
     # save images to directory for reference
@@ -115,13 +113,16 @@ def create_upload_dir(name: str, files: List[UploadFile]):
 
     # call training cmd for giannis's model
     success = trainConcept(dir, name)
+
+    # delete local files
+    os.system('rm -rf ' + name)
     return f"returns {success}"
 
 # POST request that receives an image based on a prompt that's given
 
 
 @router.post("/promptModel/")
-def model_prompt(name: str, prompt: str):
+def model_prompt(name: str, prompt: str, guidance: int, inference_steps: int, resolution: int = 0):
     # download model from s3 bucket
     s3 = boto3.resource('s3')
     file_name = f"dreambooth_outputs/multires_100/{name}"
@@ -132,7 +133,7 @@ def model_prompt(name: str, prompt: str):
     pipe = DreamBoothMultiResPipeline.from_pretrained(
         f"{file_name}", use_auth_token=True)
     pipe = pipe.to("cuda")
-    image = pipe(f"An image of <{name}(0)>" + prompt)[0]
+    image = pipe(f"An image of <{name}({resolution})> " + prompt, num_inference_steps=inference_steps, guidance_scale=guidance)[0]
     image.save(f"{name}.png")
 
     #buffered = BytesIO()
@@ -143,16 +144,33 @@ def model_prompt(name: str, prompt: str):
 
     return FileResponse(f"{name}.png")
 
+# POST request that generates conditioned image to use later
+@router.post("/getCondition/")
+def get_condition(image: UploadFile, condition: str):
+    img = Image.open(image.file)
+    if condition == "openpose":
+        model = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+        output = model(img)
+        output.save("output.png")
+        return FileResponse("output.png")
+    elif condition == "canny":
+        model = CannyDetector()
+    elif condition == "mlsd":
+        model = MLSDdetector.from_pretrained("lllyasviel/ControlNet")
+    elif condition == "hed":
+        model = HEDdetector.from_pretrained("lllyasviel/ControlNet")
+    
+    output = model(img)
+    output.save("condition.png")
+    return FileResponse("condition.png")
+
 # POST request that also guides the model based on pose
 # User passes in a pose image and the model will be guided to generate an image with that pose
-
-
 @router.post("/promptModelPose/")
-def model_prompt_pose(name: str, prompt: str, image: UploadFile):
+def model_prompt_pose(name: str, prompt: str, image: UploadFile, model_choice: str, guidance: int, inference_steps: int, resolution: int = 0):
     # load pretrained model for user and controlnet model
-    # TODO make it so that choice of controlnet is customizable for now we're using lllyasviel/sd-controlnet-openpose
     controlnet = ControlNetModel.from_pretrained(
-        "lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float16)
+        f"lllyasviel/sd-controlnet-{model_choice}", torch_dtype=torch.float16) # model choices include openpose, scribble, canny, mlsd, and hed
     # download model from s3 bucket
     s3 = boto3.resource('s3')
     file_name = f"dreambooth_outputs/multires_100/{name}"
@@ -167,10 +185,10 @@ def model_prompt_pose(name: str, prompt: str, image: UploadFile):
     prompt = f"An image of <{name}(0)> {prompt}"
     # load pose image
     pose = Image.open(image.file)
-    output = pipe(prompt, pose)
+    output = pipe(prompt, pose, num_inference_steps=inference_steps, guidance_scale=guidance)
     loc = f"out_image.png"
     output.images[0].save(loc)
-    return responses.Response(content=output.images[0].tobytes(), media_type="image/png")
+    return FileResponse(loc)
 
 # Get request that returns a list of all concepts that have been trained for a user
 # TODO Make it so that we have a dictionary of trained concepts for each user on mongoDB
