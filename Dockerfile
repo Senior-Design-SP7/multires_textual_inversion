@@ -1,5 +1,8 @@
 FROM nvidia/cuda:12.1.0-base-ubuntu20.04
 
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/cuda/lib64"
+ENV PATH ="${PATH}:/usr/local/cuda/lib64"
+
 RUN apt update -y
 
 RUN apt install software-properties-common -y

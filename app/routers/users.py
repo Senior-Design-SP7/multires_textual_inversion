@@ -32,7 +32,7 @@ stripe.api_key = 'sk_test_51MhgqVATxDijcQ83J0xDkP1Lx1KnDIQZN26HTcN20hNbGKYbC8S6G
 #       if checkout session id shows it has been paid, update isPaid field to 1 and send token
 #       else if checkout session id shows it has not been paid
 #           expire old checkout session
-#           generate new checkout session, replace database checkout session id with newly generated one. 
+#           generate new checkout session, replace database checkout session id with newly generated one.
 #           return redirect
 
 
@@ -60,14 +60,14 @@ def create_user(request: Request, user: UserCreate = Body(...)):
         # validate and get info
         v = validate_email(user['email'])
         # replace with normalized form
-        user['email'] = v["email"] 
+        user['email'] = v["email"]
     except EmailNotValidError as e:
         # email is not valid, exception message is human-readable
         raise HTTPException(
              status_code=400,
              detail=str(e)
         )
-        
+
     user['salt'] = bcrypt.gensalt()
     user['password'] = bcrypt.hashpw(user["password"].encode('utf-8'), user['salt'])
     user['isPaid'] = 0
@@ -123,7 +123,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 #       if checkout session id shows it has been paid, update isPaid field to 1 and send token
 #       else if checkout session id shows it has not been paid
 #           expire old checkout session
-#           generate new checkout session, replace database checkout session id with newly generated one. 
+#           generate new checkout session, replace database checkout session id with newly generated one.
 #           return redirect
 
 @router.post("/token")
@@ -141,7 +141,7 @@ async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = De
              detail="Incorrect username or password",
              headers={"WWW-Authenticate": "Bearer"},
          )
-    
+
     if user_entry['isPaid'] == 1:
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(data={"sub": user_entry['email']}, expires_delta=access_token_expires)
@@ -185,15 +185,15 @@ async def send_token(request: Request, form_data: OAuth2PasswordRequestForm = De
             request.app.database["userInfo"].update_one(myquery, newvalues)
             access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
             access_token = create_access_token(data={"sub": user_entry['email']}, expires_delta=access_token_expires)
-            return {"access_token": access_token, "token_type":"bearer"}       
-            
+            return {"access_token": access_token, "token_type":"bearer"}
+
 
 
 #       if checkout session id shows it has been paid, update isPaid field to 1 and send token
 #       else if checkout session id shows it has not been paid
 #           expire old checkout session
-#           generate new checkout session, replace database checkout session id with newly generated one. 
-#           return redirect        
+#           generate new checkout session, replace database checkout session id with newly generated one.
+#           return redirect
 
 
 async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)):
