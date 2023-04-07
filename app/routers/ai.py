@@ -124,9 +124,9 @@ def create_upload_dir(name: str, files: List[UploadFile], userID: str):
 @router.post("/promptModel/")
 def model_prompt(name: str, prompt: str, guidance: int, inference_steps: int, resolution: int = 0):
     # download model from s3 bucket
-    s3 = boto3.resource('s3')
+    # s3 = boto3.resource('s3')
     file_name = f"dreambooth_outputs/multires_100/{name}"
-    download_s3_folder(BUCKET_NAME, file_name, s3)
+    # download_s3_folder(BUCKET_NAME, file_name, s3)
     # check that file was downloaded successfully
     if (os.path.exists(file_name) == False):
         return responses.Response(content="Model not found", media_type="text/plain")
@@ -172,9 +172,9 @@ def model_prompt_pose(name: str, prompt: str, image: UploadFile, model_choice: s
     controlnet = ControlNetModel.from_pretrained(
         f"lllyasviel/sd-controlnet-{model_choice}", torch_dtype=torch.float16) # model choices include openpose, scribble, canny, mlsd, and hed
     # download model from s3 bucket
-    s3 = boto3.resource('s3')
+    # s3 = boto3.resource('s3')
     file_name = f"dreambooth_outputs/multires_100/{name}"
-    download_s3_folder(BUCKET_NAME, file_name, s3)
+    # download_s3_folder(BUCKET_NAME, file_name, s3)
     # check that file was downloaded successfully
     if (os.path.exists(file_name) == False):
         return responses.Response(content="Model not found", media_type="text/plain")
