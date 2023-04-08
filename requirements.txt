@@ -2,7 +2,7 @@ accelerate==0.17.1
 httptools==0.1.*
 email-validator
 uvloop
-bitsandbytes==0.37.0
+bitsandbytes-cuda116
 diffusers[torch]
 fastapi==0.92.0
 huggingface_hub==0.12.0
