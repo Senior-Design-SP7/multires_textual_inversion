@@ -79,7 +79,7 @@ def trainConcept(conceptDir, conceptName):
 				--learning_rate=5e-6 \
 				--lr_scheduler=constant \
 				--lr_warmup_steps=0 \
-				--max_train_steps=100 ".format(MODEL_NAME, conceptDir, conceptName)
+				--max_train_steps=175 ".format(MODEL_NAME, conceptDir, conceptName)
 
     train_dreambooth.main(train_dreambooth.parse_args(args.split()))
     # upload to s3 bucket
